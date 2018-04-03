@@ -6,8 +6,6 @@ headers = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:58.0) Gecko
 username = 'XXX'
 password = getpass.getpass('Reddit password: ')
 
-url = 'https://www.reddit.com/api/guess_voting_key.json'
-
 def login(session, username, password):
 	r = session.get('https://www.reddit.com/api/requires_captcha/login.json', proxies=proxies)
 	print(r.text)
@@ -16,7 +14,7 @@ def login(session, username, password):
 
 def try_password(session, circle_id, circle_password)
 	data = dict(id=circle_id, raw_json=1, vote_key=circle_password)
-	r = s.post(url, data=data, headers=headers, proxies=proxies, timeout=3)
+	r = s.post('https://www.reddit.com/api/guess_voting_key.json', data=data, headers=headers, proxies=proxies, timeout=3)
 	if r.status_code == requests.codes.ok:
 		print(r.text)
 	else:
