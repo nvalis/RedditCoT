@@ -1,28 +1,59 @@
-import os
+# -*- coding: utf-8 -*-
+
+from bs4 import BeautifulSoup
+import json
 import requests
 import getpass
 
-headers = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0'}
-username = 'XXX'
-password = getpass.getpass('Reddit password: ')
+from secret import username, password, proxies
 
-def login(session, username, password):
-	r = session.get('https://www.reddit.com/api/requires_captcha/login.json', proxies=proxies)
-	print(r.text)
-	r = session.post('https://www.reddit.com/api/login/{}'.format(username), data=dict(api_type='json', op='login-main', passwd=password, user=username), proxies=proxies)
-	print(r.text)
 
-def try_password(session, circle_id, circle_password)
-	data = dict(id=circle_id, raw_json=1, vote_key=circle_password)
-	r = s.post('https://www.reddit.com/api/guess_voting_key.json', data=data, headers=headers, proxies=proxies, timeout=3)
-	if r.status_code == requests.codes.ok:
-		print(r.text)
-	else:
-		print('Error: {} ({})'.format(r.status_code, requests.status_codes._codes[r.status_code]))
+class CircleOfTrust():
+	def __init__(self, username, password, proxies={}):
+		self.session = requests.Session()
+		self.session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0'})
+		self.proxies = proxies
+		self.session.get('https://www.reddit.com/api/requires_captcha/login.json', proxies=self.proxies)
+		data = {'op': 'login', 'user': username, 'passwd': password, 'rem': 'yes', 'api_type': 'json'}
+		self.session.post(f'https://www.reddit.com/api/login/{username}', data=data, proxies=self.proxies)
 
-s = requests.Session()
-login(s, username, password)
+	@staticmethod
+	def get_user_circle_url(username):
+		return f'https://reddit.com/user/{username}/circle/embed'
 
-circle_id = 't3_XXX'
-circle_password = 'XXX'
-try_password(s, circle_id, circle_password)
+	@staticmethod
+	def get_vote_id(soup):
+		print(soup)
+		return soup.find('input', {'class': 'link_fullname'})['value']
+
+	@staticmethod
+	def get_vote_hash(soup):
+		return json.loads(soup.find(id='config').text[8:-1])['vote_hash']
+
+	def get_soup(self, url):
+		r = self.session.get(url, proxies=self.proxies)
+		return BeautifulSoup(r.text, 'html.parser')
+
+	def get_password(self, username):
+		soup = self.get_soup(self.get_user_circle_url(username))
+		return soup.find(id='circle-passphrase')['value']
+
+	def try_key(self, username, key):
+		soup = self.get_soup(self.get_user_circle_url(username))
+		data = {'id': self.get_vote_id(soup), 'vote_key': key}
+		return self.session.post(f'https://www.reddit.com/api/guess_voting_key.json', data=data, proxies=self.proxies)
+
+	def join(self, username):
+		soup = self.get_soup(self.get_user_circle_url(username))
+		data = {'id': self.get_vote_id(soup), 'dir': 1, 'vh': self.get_vote_hash(soup), 'isTrusted': False}
+		return self.session.post(f'https://www.reddit.com/api/circle_vote.json?dir=1&id={vote_id}', data=data, proxies=self.proxies)
+
+	def betray(self, username):
+		soup = self.get_soup(self.get_user_circle_url(username))
+		data = {'id': self.get_vote_id(soup), 'dir': -1, 'vh': self.get_vote_hash(soup), 'isTrusted': False}
+		return self.session.post(f'https://www.reddit.com/api/circle_vote.json?dir=-1&id={vote_id}', data=data, proxies=self.proxies)
+
+
+if __name__ == '__main__':
+	cot = CircleOfTrust(username, password, proxies=proxies)
+	print(cot.try_key('BluApex', 'Testing').text)
